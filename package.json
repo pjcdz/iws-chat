@@ -1,7 +1,8 @@
 {
-  "name": "gemini-chatbot",
+  "name": "ai-chat-assistant",
   "version": "0.1.0",
   "private": true,
+  "description": "A general purpose AI chat assistant built with Next.js and the AI SDK",
   "scripts": {
     "dev": "next dev --turbo",
     "build": "tsx db/migrate && next build",

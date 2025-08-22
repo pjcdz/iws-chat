@@ -21,14 +21,24 @@ import { Textarea } from "../ui/textarea";
 
 const suggestedActions = [
   {
-    title: "Help me book a flight",
-    label: "from San Francisco to London",
-    action: "Help me book a flight from San Francisco to London",
+    title: "What's the weather like",
+    label: "in New York today?",
+    action: "What's the weather like in New York today?",
   },
   {
-    title: "What is the status",
-    label: "of flight BA142 flying tmrw?",
-    action: "What is the status of flight BA142 flying tmrw?",
+    title: "Help me write",
+    label: "a professional email",
+    action: "Help me write a professional email for a job application",
+  },
+  {
+    title: "Explain",
+    label: "quantum computing simply",
+    action: "Explain quantum computing in simple terms",
+  },
+  {
+    title: "Creative writing",
+    label: "tell me a short story",
+    action: "Tell me a creative short story about space exploration",
   },
 ];
 
@@ -156,7 +166,7 @@ export function MultimodalInput({
       {messages.length === 0 &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (
-          <div className="grid sm:grid-cols-2 gap-4 w-full md:px-0 mx-auto md:max-w-[500px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full md:px-0 mx-auto md:max-w-[500px]">
             {suggestedActions.map((suggestedAction, index) => (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -164,7 +174,6 @@ export function MultimodalInput({
                 exit={{ opacity: 0, y: 20 }}
                 transition={{ delay: 0.05 * index }}
                 key={index}
-                className={index > 1 ? "hidden sm:block" : "block"}
               >
                 <button
                   onClick={async () => {

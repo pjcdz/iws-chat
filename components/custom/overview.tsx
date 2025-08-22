@@ -20,8 +20,8 @@ export const Overview = () => {
           <MessageIcon />
         </p>
         <p>
-          This is an open source Chatbot template powered by the Google Gemini
-          model built with Next.js and the AI SDK by Vercel. It uses the{" "}
+          This is an AI Chat Assistant powered by the Google Gemini model and built with Next.js and the AI SDK by Vercel. 
+          It uses the{" "}
           <code className="rounded-sm bg-muted-foreground/15 px-1.5 py-0.5">
             streamText
           </code>{" "}
@@ -30,6 +30,9 @@ export const Overview = () => {
             useChat
           </code>{" "}
           hook on the client to create a seamless chat experience.
+        </p>
+        <p>
+          Ask me anything! I can help with various tasks, answer questions, and even check the weather for you.
         </p>
         <p>
           {" "}
