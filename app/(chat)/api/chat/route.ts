@@ -1,4 +1,4 @@
-import { convertToCoreMessages, Message, streamText } from "ai";
+import { convertToModelMessages, UIMessage, streamText } from "ai";
 import { z } from "zod";
 
 import { geminiProModel } from "@/ai";
@@ -11,7 +11,7 @@ import {
 import { generateUUID } from "@/lib/utils";
 
 export async function POST(request: Request) {
-  const { id, messages }: { id: string; messages: Array<Message> } =
+  const { id, messages }: { id: string; messages: Array<UIMessage> } =
     await request.json();
 
   const session = await auth();
@@ -20,11 +20,11 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const coreMessages = convertToCoreMessages(messages).filter(
+  const coreMessages = convertToModelMessages(messages).filter(
     (message) => message.content.length > 0,
   );
 
-  const result = await streamText({
+  const result = streamText({
     model: geminiProModel,
     system: `You are a helpful AI assistant. You can help users with various tasks and questions. 
       - Be concise and helpful in your responses.
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     tools: {
       getWeather: {
         description: "Get the current weather at a location",
-        parameters: z.object({
+        inputSchema: z.object({
           latitude: z.number().describe("Latitude coordinate"),
           longitude: z.number().describe("Longitude coordinate"),
         }),
@@ -49,17 +49,20 @@ export async function POST(request: Request) {
         },
       },
     },
-    onFinish: async ({ text }) => {
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: "stream-text",
+    },
+  });
+
+  return result.toUIMessageStreamResponse({
+    originalMessages: messages,
+    onFinish: async ({ messages: finalMessages }) => {
       if (session.user && session.user.id) {
         try {
-          const assistantMessage = {
-            role: "assistant" as const,
-            content: text,
-          };
-          
           await saveChat({
             id,
-            messages: [...coreMessages, assistantMessage],
+            messages: finalMessages,
             userId: session.user.id,
           });
         } catch (error) {
@@ -67,13 +70,7 @@ export async function POST(request: Request) {
         }
       }
     },
-    experimental_telemetry: {
-      isEnabled: true,
-      functionId: "stream-text",
-    },
   });
-
-  return result.toDataStreamResponse({});
 }
 
 export async function DELETE(request: Request) {

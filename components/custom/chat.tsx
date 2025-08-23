@@ -1,8 +1,15 @@
 "use client";
 
-import { Attachment, Message } from "ai";
-import { useChat } from "ai/react";
+import { useChat } from '@ai-sdk/react';
+import { UIMessage, DefaultChatTransport } from "ai";
 import { useState } from "react";
+
+// Define a simple Attachment type to match MultimodalInput
+interface Attachment {
+  name: string;
+  url: string;
+  contentType: string;
+}
 
 import { Message as PreviewMessage } from "@/components/custom/message";
 import { useScrollToBottom } from "@/components/custom/use-scroll-to-bottom";
@@ -15,23 +22,34 @@ export function Chat({
   initialMessages,
 }: {
   id: string;
-  initialMessages: Array<Message>;
+  initialMessages: Array<UIMessage>;
 }) {
-  const { messages, handleSubmit, input, setInput, append, isLoading, stop } =
-    useChat({
-      id,
-      body: { id },
-      initialMessages,
-      maxSteps: 10,
-      onFinish: () => {
-        window.history.replaceState({}, "", `/chat/${id}`);
-      },
-    });
+  const [input, setInput] = useState('');
+  const { messages, sendMessage, status, stop } = useChat({
+    transport: new DefaultChatTransport({ 
+      api: '/api/chat',
+      body: { id }
+    }),
+    messages: initialMessages, // renamed from initialMessages
+    onFinish: () => {
+      window.history.replaceState({}, "", `/chat/${id}`);
+    },
+  });
 
   const [messagesContainerRef, messagesEndRef] =
     useScrollToBottom<HTMLDivElement>();
 
   const [attachments, setAttachments] = useState<Array<Attachment>>([]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      sendMessage({ text: input });
+      setInput('');
+    }
+  };
+
+  const isLoading = status === 'streaming' || status === 'submitted';
 
   return (
     <div className="flex flex-row justify-center pb-4 md:pb-8 h-dvh bg-background">
@@ -47,9 +65,7 @@ export function Chat({
               key={message.id}
               chatId={id}
               role={message.role}
-              content={message.content}
-              attachments={message.experimental_attachments}
-              toolInvocations={message.toolInvocations}
+              parts={message.parts}
             />
           ))}
 
@@ -69,7 +85,7 @@ export function Chat({
             attachments={attachments}
             setAttachments={setAttachments}
             messages={messages}
-            append={append}
+            sendMessage={sendMessage}
           />
         </form>
       </div>

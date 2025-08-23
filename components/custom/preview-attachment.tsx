@@ -1,6 +1,11 @@
-import { Attachment } from "ai";
-
 import { LoaderIcon } from "./icons";
+
+// Define Attachment type to match what we're using
+interface Attachment {
+  name: string;
+  url: string;
+  contentType: string;
+}
 
 export const PreviewAttachment = ({
   attachment,

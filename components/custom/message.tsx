@@ -1,8 +1,7 @@
 "use client";
 
-import { Attachment, ToolInvocation } from "ai";
+import { UIMessagePart } from "ai";
 import { motion } from "framer-motion";
-import { ReactNode } from "react";
 
 import { BotIcon, UserIcon } from "./icons";
 import { Markdown } from "./markdown";
@@ -12,15 +11,11 @@ import { Weather } from "./weather";
 export const Message = ({
   chatId,
   role,
-  content,
-  toolInvocations,
-  attachments,
+  parts,
 }: {
   chatId: string;
   role: string;
-  content: string | ReactNode;
-  toolInvocations: Array<ToolInvocation> | undefined;
-  attachments?: Array<Attachment>;
+  parts: Array<UIMessagePart<any, any>>;
 }) => {
   return (
     <motion.div
@@ -33,49 +28,83 @@ export const Message = ({
       </div>
 
       <div className="flex flex-col gap-2 w-full">
-        {content && typeof content === "string" && (
-          <div className="text-zinc-800 dark:text-zinc-300 flex flex-col gap-4">
-            <Markdown>{content}</Markdown>
-          </div>
-        )}
+        {parts.map((part, index) => {
+          switch (part.type) {
+            case 'text':
+              return (
+                <div key={index} className="text-zinc-800 dark:text-zinc-300 flex flex-col gap-4">
+                  <Markdown>{part.text}</Markdown>
+                </div>
+              );
 
-        {toolInvocations && (
-          <div className="flex flex-col gap-4">
-            {toolInvocations.map((toolInvocation) => {
-              const { toolName, toolCallId, state } = toolInvocation;
+            case 'tool-getWeather':
+              switch (part.state) {
+                case 'input-streaming':
+                case 'input-available':
+                  return (
+                    <div key={index} className="skeleton">
+                      <Weather />
+                    </div>
+                  );
+                case 'output-available':
+                  return (
+                    <div key={index}>
+                      <Weather weatherAtLocation={part.output} />
+                    </div>
+                  );
+                case 'output-error':
+                  return (
+                    <div key={index} className="text-red-500">
+                      Error: {part.errorText}
+                    </div>
+                  );
+              }
+              break;
 
-              if (state === "result") {
-                const { result } = toolInvocation;
+            case 'dynamic-tool':
+              switch (part.state) {
+                case 'input-streaming':
+                case 'input-available':
+                  return (
+                    <div key={index} className="skeleton">
+                      Tool: {part.toolName}
+                    </div>
+                  );
+                case 'output-available':
+                  return (
+                    <div key={index}>
+                      <div>Tool: {part.toolName}</div>
+                      <pre>{JSON.stringify(part.output, null, 2)}</pre>
+                    </div>
+                  );
+                case 'output-error':
+                  return (
+                    <div key={index} className="text-red-500">
+                      Tool Error: {part.errorText}
+                    </div>
+                  );
+              }
+              break;
 
+            case 'file':
+              if (part.mediaType?.startsWith('image/')) {
                 return (
-                  <div key={toolCallId}>
-                    {toolName === "getWeather" ? (
-                      <Weather weatherAtLocation={result} />
-                    ) : (
-                      <div>{JSON.stringify(result, null, 2)}</div>
-                    )}
+                  <div key={index}>
+                    <img src={part.url} alt="Attachment" />
                   </div>
                 );
               } else {
                 return (
-                  <div key={toolCallId} className="skeleton">
-                    {toolName === "getWeather" ? (
-                      <Weather />
-                    ) : null}
+                  <div key={index}>
+                    <PreviewAttachment attachment={{ url: part.url, name: 'file', contentType: part.mediaType }} />
                   </div>
                 );
               }
-            })}
-          </div>
-        )}
 
-        {attachments && (
-          <div className="flex flex-row gap-2">
-            {attachments.map((attachment) => (
-              <PreviewAttachment key={attachment.url} attachment={attachment} />
-            ))}
-          </div>
-        )}
+            default:
+              return null;
+          }
+        })}
       </div>
     </motion.div>
   );

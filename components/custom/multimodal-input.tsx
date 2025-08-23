@@ -1,6 +1,6 @@
 "use client";
 
-import { Attachment, ChatRequestOptions, CreateMessage, Message } from "ai";
+import { UIMessage } from "ai";
 import { motion } from "framer-motion";
 import React, {
   useRef,
@@ -18,6 +18,13 @@ import { PreviewAttachment } from "./preview-attachment";
 import useWindowSize from "./use-window-size";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
+
+// Temporary type definition for Attachment
+type Attachment = {
+  name: string;
+  url: string;
+  contentType: string;
+};
 
 const suggestedActions = [
   {
@@ -50,7 +57,7 @@ export function MultimodalInput({
   attachments,
   setAttachments,
   messages,
-  append,
+  sendMessage,
   handleSubmit,
 }: {
   input: string;
@@ -59,17 +66,9 @@ export function MultimodalInput({
   stop: () => void;
   attachments: Array<Attachment>;
   setAttachments: Dispatch<SetStateAction<Array<Attachment>>>;
-  messages: Array<Message>;
-  append: (
-    message: Message | CreateMessage,
-    chatRequestOptions?: ChatRequestOptions,
-  ) => Promise<string | null | undefined>;
-  handleSubmit: (
-    event?: {
-      preventDefault?: () => void;
-    },
-    chatRequestOptions?: ChatRequestOptions,
-  ) => void;
+  messages: Array<UIMessage>;
+  sendMessage: (message: { text: string; experimental_attachments?: Array<Attachment> }) => void;
+  handleSubmit: (event: React.FormEvent) => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { width } = useWindowSize();
@@ -96,16 +95,19 @@ export function MultimodalInput({
   const [uploadQueue, setUploadQueue] = useState<Array<string>>([]);
 
   const submitForm = useCallback(() => {
-    handleSubmit(undefined, {
-      experimental_attachments: attachments,
-    });
-
-    setAttachments([]);
-
-    if (width && width > 768) {
-      textareaRef.current?.focus();
+    if (input.trim()) {
+      sendMessage({
+        text: input,
+        experimental_attachments: attachments,
+      });
+      setInput("");
+      setAttachments([]);
+      
+      if (width && width > 768) {
+        textareaRef.current?.focus();
+      }
     }
-  }, [attachments, handleSubmit, setAttachments, width]);
+  }, [input, attachments, sendMessage, setInput, setAttachments, width]);
 
   const uploadFile = async (file: File) => {
     const formData = new FormData();
@@ -177,9 +179,8 @@ export function MultimodalInput({
               >
                 <button
                   onClick={async () => {
-                    append({
-                      role: "user",
-                      content: suggestedAction.action,
+                    sendMessage({
+                      text: suggestedAction.action,
                     });
                   }}
                   className="border-none bg-muted/50 w-full text-left border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-300 rounded-lg p-3 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors flex flex-col"
