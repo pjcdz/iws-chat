@@ -49,12 +49,17 @@ export async function POST(request: Request) {
         },
       },
     },
-    onFinish: async ({ responseMessages }) => {
+    onFinish: async ({ text }) => {
       if (session.user && session.user.id) {
         try {
+          const assistantMessage = {
+            role: "assistant" as const,
+            content: text,
+          };
+          
           await saveChat({
             id,
-            messages: [...coreMessages, ...responseMessages],
+            messages: [...coreMessages, assistantMessage],
             userId: session.user.id,
           });
         } catch (error) {
