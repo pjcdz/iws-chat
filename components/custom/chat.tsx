@@ -34,6 +34,8 @@ export function Chat({
     onFinish: () => {
       window.history.replaceState({}, "", `/chat/${id}`);
     },
+    // Throttling para UI más suave - actualiza cada 25ms en lugar de cada chunk
+    experimental_throttle: 25,
   });
 
   const [messagesContainerRef, messagesEndRef] =

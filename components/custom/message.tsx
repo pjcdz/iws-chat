@@ -33,7 +33,7 @@ export const Message = ({
             case 'text':
               return (
                 <div key={index} className="text-zinc-800 dark:text-zinc-300 flex flex-col gap-4">
-                  <Markdown>{part.text}</Markdown>
+                  <Markdown id={`message-${role}-${chatId}-${index}`}>{part.text}</Markdown>
                 </div>
               );
 

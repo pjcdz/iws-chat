@@ -1,4 +1,4 @@
-import { convertToModelMessages, UIMessage, streamText } from "ai";
+import { convertToModelMessages, UIMessage, streamText, smoothStream } from "ai";
 import { z } from "zod";
 
 import { geminiProModel } from "@/ai";
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
           longitude: z.number().describe("Longitude coordinate"),
         }),
         execute: async ({ latitude, longitude }) => {
+          console.log(`📍 Consultando clima para: ${latitude}, ${longitude}`);
           const response = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m&hourly=temperature_2m&daily=sunrise,sunset&timezone=auto`,
           );
@@ -48,6 +49,36 @@ export async function POST(request: Request) {
           return weatherData;
         },
       },
+    },
+    // Streaming suave - palabra por palabra con delay mínimo
+    experimental_transform: smoothStream({
+      delayInMs: 8, // 8ms entre chunks para experiencia ultra-suave
+      chunking: 'word', // Palabra por palabra
+    }) as any,
+    // Callbacks mejorados para debugging y UX
+    onChunk({ chunk }) {
+      switch (chunk.type) {
+        case 'text-delta':
+          // Texto siendo generado palabra por palabra
+          process.stdout.write(chunk.text);
+          break;
+        case 'tool-call':
+          console.log('🔧 Tool llamada:', chunk.toolName);
+          break;
+        case 'tool-result':
+          console.log('✅ Tool resultado recibido');
+          break;
+        case 'reasoning-delta':
+          console.log('🤔 Model reasoning delta:', chunk.text.slice(0, 30));
+          break;
+      }
+    },
+    onFinish({ usage }) {
+      console.log('🏁 Generación completada:', {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
+      });
     },
     experimental_telemetry: {
       isEnabled: true,
