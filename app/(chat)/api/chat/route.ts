@@ -8,7 +8,8 @@ import {
   getChatById,
   saveChat,
 } from "@/db/queries";
-import { generateUUID } from "@/lib/utils";
+
+export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   const { id, messages }: { id: string; messages: Array<UIMessage> } =
@@ -20,9 +21,12 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const coreMessages = convertToModelMessages(messages).filter(
-    (message) => message.content.length > 0,
-  );
+  const coreMessages = convertToModelMessages(messages).filter((message: any) => {
+    const c = message.content as any;
+    if (typeof c === 'string') return c.trim().length > 0;
+    if (Array.isArray(c)) return c.length > 0;
+    return !!c;
+  });
 
   const result = streamText({
     model: geminiProModel,
@@ -50,54 +54,67 @@ export async function POST(request: Request) {
         },
       },
     },
-    // Streaming suave - palabra por palabra con delay mínimo
+    // Smooth streaming; keep API responses clean by default
     experimental_transform: smoothStream({
-      delayInMs: 8, // 8ms entre chunks para experiencia ultra-suave
-      chunking: 'word', // Palabra por palabra
+      delayInMs: 8,
+      chunking: 'word',
     }) as any,
-    // Callbacks mejorados para debugging y UX
-    onChunk({ chunk }) {
-      switch (chunk.type) {
-        case 'text-delta':
-          // Texto siendo generado palabra por palabra
-          process.stdout.write(chunk.text);
-          break;
-        case 'tool-call':
-          console.log('🔧 Tool llamada:', chunk.toolName);
-          break;
-        case 'tool-result':
-          console.log('✅ Tool resultado recibido');
-          break;
-        case 'reasoning-delta':
-          console.log('🤔 Model reasoning delta:', chunk.text.slice(0, 30));
-          break;
-      }
-    },
-    onFinish({ usage }) {
-      console.log('🏁 Generación completada:', {
-        inputTokens: usage.inputTokens,
-        outputTokens: usage.outputTokens,
-        totalTokens: usage.totalTokens,
-      });
-    },
+    // Reduce noisy server logs; enable verbose logs only in development
+    onChunk: process.env.DEBUG_STREAM_LOGS === 'true'
+      ? ({ chunk }) => {
+          switch (chunk.type) {
+            case 'text-delta':
+              process.stdout.write(chunk.text);
+              break;
+            case 'tool-call':
+              console.log('🔧 Tool llamada:', chunk.toolName);
+              break;
+            case 'tool-result':
+              console.log('✅ Tool resultado recibido');
+              break;
+            case 'reasoning-delta':
+              console.log('🤔 Model reasoning delta:', chunk.text.slice(0, 30));
+              break;
+          }
+        }
+      : undefined,
+    onFinish: process.env.DEBUG_STREAM_LOGS === 'true'
+      ? ({ usage }) => {
+          console.log('🏁 Generación completada:', {
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            totalTokens: usage.totalTokens,
+          });
+        }
+      : undefined,
     experimental_telemetry: {
       isEnabled: true,
       functionId: "stream-text",
     },
   });
 
+  // validate the provided id to avoid DB errors, but don't break streaming
+  const isUuid = (val: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
+
+  const safeId = typeof id === 'string' && isUuid(id) ? id : null;
+
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
     onFinish: async ({ messages: finalMessages }) => {
+      if (!safeId) {
+        console.warn("Skipping chat save: invalid chat id provided", { id });
+        return;
+      }
       if (session.user && session.user.id) {
         try {
           await saveChat({
-            id,
+            id: safeId,
             messages: finalMessages,
             userId: session.user.id,
           });
         } catch (error) {
-          console.error("Failed to save chat");
+          console.error("Failed to save chat:", error);
         }
       }
     },

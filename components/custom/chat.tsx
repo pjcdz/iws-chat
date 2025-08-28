@@ -26,9 +26,9 @@ export function Chat({
 }) {
   const [input, setInput] = useState('');
   const { messages, sendMessage, status, stop } = useChat({
+    id, // ensure server receives a UUID chat id
     transport: new DefaultChatTransport({ 
       api: '/api/chat',
-      body: { id }
     }),
     messages: initialMessages, // renamed from initialMessages
     onFinish: () => {

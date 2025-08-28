@@ -29,7 +29,7 @@ export async function createUser(email: string, password: string) {
   try {
     return await db.insert(user).values({ email, password: hash });
   } catch (error) {
-    console.error("Failed to create user in database");
+    console.error("Failed to create user in database:", error);
     throw error;
   }
 }
@@ -50,7 +50,7 @@ export async function saveChat({
       return await db
         .update(chat)
         .set({
-          messages: JSON.stringify(messages),
+          messages, // store as JSON object/array, not string
         })
         .where(eq(chat.id, id));
     }
@@ -58,11 +58,11 @@ export async function saveChat({
     return await db.insert(chat).values({
       id,
       createdAt: new Date(),
-      messages: JSON.stringify(messages),
+      messages, // store as JSON object/array, not string
       userId,
     });
   } catch (error) {
-    console.error("Failed to save chat in database");
+    console.error("Failed to save chat in database:", error);
     throw error;
   }
 }
@@ -71,7 +71,7 @@ export async function deleteChatById({ id }: { id: string }) {
   try {
     return await db.delete(chat).where(eq(chat.id, id));
   } catch (error) {
-    console.error("Failed to delete chat by id from database");
+    console.error("Failed to delete chat by id from database:", error);
     throw error;
   }
 }
@@ -84,7 +84,7 @@ export async function getChatsByUserId({ id }: { id: string }) {
       .where(eq(chat.userId, id))
       .orderBy(desc(chat.createdAt));
   } catch (error) {
-    console.error("Failed to get chats by user from database");
+    console.error("Failed to get chats by user from database:", error);
     throw error;
   }
 }
@@ -94,7 +94,7 @@ export async function getChatById({ id }: { id: string }) {
     const [selectedChat] = await db.select().from(chat).where(eq(chat.id, id));
     return selectedChat;
   } catch (error) {
-    console.error("Failed to get chat by id from database");
+    console.error("Failed to get chat by id from database:", error);
     throw error;
   }
 }
